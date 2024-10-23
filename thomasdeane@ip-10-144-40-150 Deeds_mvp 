@@ -1,0 +1,25 @@
+CREATE USER Tom WITH PASSWORD 'Moodler93*';
+GRANT ALL PRIVILEGES ON DATABASE deeds_mvp_dev TO Tom;
+
+
+npx sequelize-cli model:generate --name User --attributes email:string,password:string,role:string
+
+
+CREATE USER Tom WITH PASSWORD 'Moodler93*';
+
+
+
+
+
+lsof -i :5001
+kill -9 11729
+
+
+pg_dump -U your_postgres_user -d your_database_name -F c -b -v -f Deeds_mvp_backup
+
+
+psql -U thomasdeane -d deeds_mvp_dev
+
+SELECT * FROM Users WHERE email = 'buy@test.com';
+
+UPDATE "Users" SET "projectId" = 2 WHERE email = 'buy@test.com';
