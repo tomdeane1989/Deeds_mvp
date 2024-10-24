@@ -10,9 +10,11 @@ const App = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      setIsAuthenticated(true);
+        setIsAuthenticated(true);
+    } else {
+        setIsAuthenticated(false);
     }
-  }, []);
+}, []);
 
   // Protect the project route
   const ProtectedRoute = ({ children }) => {
