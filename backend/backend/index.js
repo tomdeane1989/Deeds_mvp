@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Project, Milestone, UserProjectRole } = require('./models'); // Updated to include UserProjectRole
+const { User, Project, Milestone, UserProjectRole, UserProjects } = require('./models'); // Only one import for models
 const app = express();
 const port = process.env.PORT || 5001;
 
@@ -138,6 +138,44 @@ app.put('/projects/:id', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error updating project:', error);
     res.status(500).json({ message: 'Error updating project', error });
+  }
+});
+
+// DELETE Project Route
+app.delete('/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const project = await Project.findByPk(id);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Check if the current user is associated with the project
+    const user = await User.findByPk(req.user.id, {
+      include: {
+        model: Project,
+        where: { id },
+        through: { attributes: [] }
+      }
+    });
+
+    if (!user || !user.Projects.length) {
+      return res.status(403).json({ message: 'You are not authorized to delete this project.' });
+    }
+
+    // Remove all project-user associations in UserProjects
+    await UserProjects.destroy({ where: { projectId: id } });
+
+    // Delete project and associated milestones
+    await Milestone.destroy({ where: { projectId: id } });
+    await project.destroy();
+
+    res.json({ message: 'Project deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ message: 'Error deleting project', error });
   }
 });
 

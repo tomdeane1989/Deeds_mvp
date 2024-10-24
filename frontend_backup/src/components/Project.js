@@ -117,6 +117,22 @@ const Project = () => {
       });
   };
 
+  // Handle deleting a project
+  const handleDeleteProject = (projectId) => {
+    axios.delete(`http://localhost:5001/projects/${projectId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+      .then(() => {
+        // Remove the deleted project from the state
+        setProjects(projects.filter((proj) => proj.id !== projectId));
+      })
+      .catch(error => {
+        console.error('Error deleting project:', error);
+      });
+  };
+
   // Handle logging out
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -254,6 +270,9 @@ const Project = () => {
                   <Button size="small" variant="contained" color="secondary" onClick={() => handleClickOpenEdit(project)}>
                     Edit
                   </Button>
+                  <Button size="small" variant="contained" color="error" onClick={() => handleDeleteProject(project.id)}>
+                    Delete
+                  </Button> {/* New delete button */}
                 </CardActions>
               </Card>
             </Grid>
