@@ -72,7 +72,12 @@ app.post('/projects', verifyToken, async (req, res) => {
   const { name, description, userRole } = req.body;
 
   try {
-    const project = await Project.create({ name, description });
+    // Assign ownerId to the current user (who creates the project)
+    const project = await Project.create({
+      name,
+      description,
+      ownerId: req.user.id // Assign the authenticated user as the owner
+    });
 
     // Associate the project with the current user and assign a role
     const user = await User.findByPk(req.user.id);
@@ -179,17 +184,17 @@ app.delete('/projects/:id', verifyToken, async (req, res) => {
   }
 });
 
-// GET Projects - Return project-specific roles
+// GET Projects - Return project-specific roles and owner email
 app.get('/projects', verifyToken, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
       include: {
         model: Project,
-        through: {
-          attributes: [] // Avoid returning UserProjects metadata
-        }
+        through: { attributes: [] },
+        include: [{ model: User, as: 'owner', attributes: ['email'] }] // Include owner's email
       }
     });
+
     const projects = user ? user.Projects : [];
 
     // Fetch user roles for each project
@@ -199,7 +204,11 @@ app.get('/projects', verifyToken, async (req, res) => {
 
     const projectsWithRoles = projects.map(project => {
       const projectRole = projectRoles.find(role => role.projectId === project.id);
-      return { ...project.toJSON(), role: projectRole ? projectRole.role : 'No role assigned' };
+      return {
+        ...project.toJSON(),
+        role: projectRole ? projectRole.role : 'No role assigned',
+        ownerEmail: project.owner ? project.owner.email : 'No owner' // Include owner email
+      };
     });
 
     res.json({ projects: projectsWithRoles });

@@ -31,7 +31,7 @@ const Project = () => {
       },
     })
       .then(response => {
-        setProjects(response.data.projects); // Store projects data including roles
+        setProjects(response.data.projects); // Store projects data including roles and ownerEmail
       })
       .catch(error => {
         console.error('Error fetching projects:', error);
@@ -89,10 +89,23 @@ const Project = () => {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     })
-      .then(response => {
-        setProjects([...projects, response.data]); // Add the new project to the list
-        setNewProject({ name: '', description: '', role: '' }); // Reset the form
-        handleCloseCreate(); // Close the dialog
+      .then(() => {
+        // Re-fetch the projects to ensure the list is updated correctly
+        axios.get('http://localhost:5001/projects', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        })
+        .then(response => {
+          setProjects(response.data.projects); // Update state with all projects including the new one
+        })
+        .catch(error => {
+          console.error('Error fetching updated projects:', error);
+        });
+
+        // Reset the form and close the dialog
+        setNewProject({ name: '', description: '', role: '' });
+        handleCloseCreate();
       })
       .catch(error => {
         console.error('Error creating project:', error);
@@ -106,11 +119,22 @@ const Project = () => {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     })
-      .then(response => {
-        setProjects(projects.map((proj) =>
-          proj.id === currentProject.id ? response.data : proj
-        )); // Update the edited project in the list
-        handleCloseEdit(); // Close the dialog
+      .then(() => {
+        // Re-fetch the projects to ensure the list is updated correctly
+        axios.get('http://localhost:5001/projects', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        })
+        .then(response => {
+          setProjects(response.data.projects); // Update state with all projects including the edited one
+        })
+        .catch(error => {
+          console.error('Error fetching updated projects:', error);
+        });
+
+        // Close the edit dialog
+        handleCloseEdit();
       })
       .catch(error => {
         console.error('Error updating project:', error);
@@ -251,7 +275,7 @@ const Project = () => {
                   <Typography variant="body2" color="text.secondary">
                     {project.description}
                   </Typography>
-                  {/* Separate divs for Project ID and Role */}
+                  {/* Separate divs for Project ID, Role, and Owner Email */}
                   <div>
                     <Typography variant="caption" color="text.secondary">
                       Project ID: {project.id}
@@ -260,6 +284,11 @@ const Project = () => {
                   <div>
                     <Typography variant="caption" color="text.secondary">
                       Role: {project.role}
+                    </Typography>
+                  </div>
+                  <div>
+                    <Typography variant="caption" color="text.secondary">
+                      Project Owner: {project.ownerEmail}
                     </Typography>
                   </div>
                 </CardContent>
@@ -272,7 +301,7 @@ const Project = () => {
                   </Button>
                   <Button size="small" variant="contained" color="error" onClick={() => handleDeleteProject(project.id)}>
                     Delete
-                  </Button> {/* New delete button */}
+                  </Button>
                 </CardActions>
               </Card>
             </Grid>
