@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Button, Typography, Card, CardContent, CardActions, Grid, Dialog, DialogActions, DialogContent, DialogTitle, TextField
+  Button, Typography, Card, CardContent, CardActions, Grid, Dialog, DialogActions, DialogContent, DialogTitle, TextField, MenuItem, Select, InputLabel, FormControl
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Project = () => {
@@ -12,16 +12,19 @@ const Project = () => {
   const [currentProject, setCurrentProject] = useState(null);
   const [newProject, setNewProject] = useState({
     name: '',
-    description: ''
+    description: '',
+    role: '' // New field for project-specific role
   });
+
   const [editProject, setEditProject] = useState({
     name: '',
     description: ''
   });
+  const [userRole, setUserRole] = useState(''); // State to hold user's role
 
-  const navigate = useNavigate(); // Initialize useNavigate for redirection
+  const navigate = useNavigate(); // Hook to handle navigation
 
-  // Fetch projects from the API on component load
+  // Fetch projects and user role from the API when component mounts
   useEffect(() => {
     axios.get('http://localhost:5001/projects', {
       headers: {
@@ -29,20 +32,15 @@ const Project = () => {
       },
     })
       .then(response => {
-        setProjects(response.data.projects);
+        setProjects(response.data.projects); // Store projects data
+        setUserRole(response.data.userRole); // Store the user's role
       })
       .catch(error => {
         console.error('Error fetching projects:', error);
       });
   }, []);
 
-  // Logout function
-  const handleLogout = () => {
-    localStorage.removeItem('token'); // Remove token from local storage
-    navigate('/login'); // Redirect to login page
-  };
-
-  // Open/Close dialog handlers for creating a new project
+  // Handlers for opening/closing create dialog
   const handleClickOpenCreate = () => {
     setOpenCreate(true);
   };
@@ -51,7 +49,7 @@ const Project = () => {
     setOpenCreate(false);
   };
 
-  // Open/Close dialog handlers for editing a project
+  // Handlers for opening/closing edit dialog
   const handleClickOpenEdit = (project) => {
     setCurrentProject(project);
     setEditProject({
@@ -65,17 +63,22 @@ const Project = () => {
     setOpenEdit(false);
   };
 
-  // Handle input change for the new project form
+  // Handle input changes for creating a new project
   const handleInputChange = (e) => {
     setNewProject({ ...newProject, [e.target.name]: e.target.value });
   };
 
-  // Handle input change for the edit project form
+  // Handle role selection change
+  const handleRoleChange = (e) => {
+    setNewProject({ ...newProject, role: e.target.value });
+  };
+
+  // Handle input changes for editing a project
   const handleEditInputChange = (e) => {
     setEditProject({ ...editProject, [e.target.name]: e.target.value });
   };
 
-  // Handle form submission for creating a project
+  // Handle creating a new project
   const handleSubmitCreate = () => {
     axios.post('http://localhost:5001/projects', newProject, {
       headers: {
@@ -84,7 +87,7 @@ const Project = () => {
     })
       .then(response => {
         setProjects([...projects, response.data]); // Add the new project to the list
-        setNewProject({ name: '', description: '' }); // Reset the form
+        setNewProject({ name: '', description: '', role: '' }); // Reset the form
         handleCloseCreate(); // Close the dialog
       })
       .catch(error => {
@@ -92,7 +95,7 @@ const Project = () => {
       });
   };
 
-  // Handle form submission for editing a project
+  // Handle editing a project
   const handleSubmitEdit = () => {
     axios.put(`http://localhost:5001/projects/${currentProject.id}`, editProject, {
       headers: {
@@ -101,7 +104,7 @@ const Project = () => {
     })
       .then(response => {
         setProjects(projects.map((proj) =>
-          proj.id === currentProject.id ? response.data.project : proj
+          proj.id === currentProject.id ? response.data : proj
         )); // Update the edited project in the list
         handleCloseEdit(); // Close the dialog
       })
@@ -110,10 +113,20 @@ const Project = () => {
       });
   };
 
+  // Handle logging out
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
   return (
     <div style={{ padding: '2rem' }}>
       <Typography variant="h4" gutterBottom>
         Your Projects
+      </Typography>
+
+      <Typography variant="h6" color="text.secondary">
+        Role: {userRole} {/* Displaying the user's role */}
       </Typography>
 
       <Button variant="contained" color="primary" onClick={handleClickOpenCreate} style={{ marginBottom: '20px' }}>
@@ -145,6 +158,22 @@ const Project = () => {
             value={newProject.description}
             onChange={handleInputChange}
           />
+          <FormControl fullWidth margin="dense">
+            <InputLabel id="role-select-label">Select Role</InputLabel>
+            <Select
+              labelId="role-select-label"
+              value={newProject.role}
+              onChange={handleRoleChange}
+              label="Select Role"
+            >
+              <MenuItem value="Admin">Admin</MenuItem>
+              <MenuItem value="Buyer">Buyer</MenuItem>
+              <MenuItem value="Seller">Seller</MenuItem>
+              <MenuItem value="Agent">Agent</MenuItem>
+              <MenuItem value="Solicitor">Solicitor</MenuItem>
+              <MenuItem value="Mortgage Advisor">Mortgage Advisor</MenuItem>
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseCreate} color="secondary">
@@ -224,12 +253,10 @@ const Project = () => {
         )}
       </Grid>
 
-      {/* Logout Button */}
-      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-        <Button variant="outlined" color="error" onClick={handleLogout}>
-          Logout
-        </Button>
-      </div>
+      {/* Logout button */}
+      <Button onClick={handleLogout} variant="contained" color="secondary" style={{ marginTop: '20px' }}>
+        Logout
+      </Button>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 'use strict';
-const { Model } = require('sequelize');
+const { Model, DataTypes } = require('sequelize'); // Only import Model and DataTypes
+const sequelize = require('../config/connection'); // Assuming you have a connection file
 
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
@@ -23,11 +24,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     role: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING,  // Use DataTypes instead of Sequelize
       allowNull: false,
-      defaultValue: 'user',
       validate: {
-        isIn: [['user', 'buyer', 'seller', 'admin', 'agent', 'solicitor', 'mortgage_advisor']], 
+        isIn: [['Private', 'Professional']] // Only these roles allowed at registration
       }
     }
   }, {

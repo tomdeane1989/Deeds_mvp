@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Project, Milestone } = require('./models'); // Include models
+const { User, Project, Milestone, UserProjectRole } = require('./models'); // Updated to include UserProjectRole
 const app = express();
 const port = process.env.PORT || 5001;
 
@@ -29,9 +29,15 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-// Register Route
+// Register Route (Only Private or Professional role allowed)
 app.post('/register', async (req, res) => {
   const { email, password, role } = req.body;
+  
+  // Check for allowed roles at registration
+  if (role !== 'Private' && role !== 'Professional') {
+    return res.status(400).json({ message: 'Invalid role. Must be Private or Professional.' });
+  }
+
   try {
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -63,13 +69,21 @@ app.post('/login', async (req, res) => {
 
 // Create Project Route
 app.post('/projects', verifyToken, async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, userRole } = req.body; // Adding userRole input for specific project
+
   try {
     const project = await Project.create({ name, description });
 
-    // Associate the project with the current user
+    // Associate the project with the current user and assign a role (Admin, Buyer, Seller, etc.)
     const user = await User.findByPk(req.user.id);
     await user.addProject(project); // This adds the association in UserProjects
+
+    // Assign the project-specific role
+    await UserProjectRole.create({
+      userId: user.id,
+      projectId: project.id,
+      role: userRole || 'Admin' // Default role to Admin if not provided
+    });
 
     res.json({ message: 'Project created successfully', project });
   } catch (error) {
@@ -81,7 +95,7 @@ app.post('/projects', verifyToken, async (req, res) => {
 // Update Project Route (PUT)
 app.put('/projects/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const { name, description } = req.body;
+  const { name, description, userRole } = req.body; // Include userRole for updates if necessary
 
   try {
     const project = await Project.findByPk(id);
@@ -103,11 +117,22 @@ app.put('/projects/:id', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to update this project.' });
     }
 
-    // Update project
+    // Update project details
     project.name = name;
     project.description = description;
 
     await project.save();
+
+    // Update project-specific role if provided
+    if (userRole) {
+      const userProjectRole = await UserProjectRole.findOne({ where: { userId: user.id, projectId: id } });
+      if (userProjectRole) {
+        userProjectRole.role = userRole;
+        await userProjectRole.save();
+      } else {
+        await UserProjectRole.create({ userId: user.id, projectId: id, role: userRole });
+      }
+    }
 
     res.json({ message: 'Project updated successfully', project });
   } catch (error) {
@@ -129,19 +154,30 @@ app.post('/milestones', verifyToken, async (req, res) => {
   }
 });
 
-// GET Projects
+// GET Projects - Return project-specific roles
 app.get('/projects', verifyToken, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
       include: {
         model: Project,
         through: {
-          attributes: [] // This avoids returning UserProjects metadata
+          attributes: [] // Avoid returning UserProjects metadata
         }
       }
     });
     const projects = user ? user.Projects : [];
-    res.json({ projects });
+
+    // Fetch user roles for each project
+    const projectRoles = await UserProjectRole.findAll({
+      where: { userId: req.user.id }
+    });
+
+    const projectsWithRoles = projects.map(project => {
+      const projectRole = projectRoles.find(role => role.projectId === project.id);
+      return { ...project.toJSON(), role: projectRole ? projectRole.role : 'No role assigned' };
+    });
+
+    res.json({ projects: projectsWithRoles });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching projects', error });
@@ -179,10 +215,12 @@ app.get('/milestones', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching milestones', error });
   }
 });
+
 // Verify Token Route
 app.get('/verify-token', verifyToken, (req, res) => {
   res.json({ valid: true, message: 'Token is valid' });
 });
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
