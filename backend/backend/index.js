@@ -179,7 +179,10 @@ app.get('/milestones', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching milestones', error });
   }
 });
-
+// Verify Token Route
+app.get('/verify-token', verifyToken, (req, res) => {
+  res.json({ valid: true, message: 'Token is valid' });
+});
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

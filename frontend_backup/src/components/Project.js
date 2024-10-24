@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Typography, Card, CardContent, CardActions, Grid, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
+import {
+  Button, Typography, Card, CardContent, CardActions, Grid, Dialog, DialogActions, DialogContent, DialogTitle, TextField
+} from '@mui/material';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
 import axios from 'axios';
 
 const Project = () => {
@@ -11,11 +14,12 @@ const Project = () => {
     name: '',
     description: ''
   });
-
   const [editProject, setEditProject] = useState({
     name: '',
     description: ''
   });
+
+  const navigate = useNavigate(); // Initialize useNavigate for redirection
 
   // Fetch projects from the API on component load
   useEffect(() => {
@@ -31,6 +35,12 @@ const Project = () => {
         console.error('Error fetching projects:', error);
       });
   }, []);
+
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem('token'); // Remove token from local storage
+    navigate('/login'); // Redirect to login page
+  };
 
   // Open/Close dialog handlers for creating a new project
   const handleClickOpenCreate = () => {
@@ -91,7 +101,7 @@ const Project = () => {
     })
       .then(response => {
         setProjects(projects.map((proj) =>
-          proj.id === currentProject.id ? response.data : proj
+          proj.id === currentProject.id ? response.data.project : proj
         )); // Update the edited project in the list
         handleCloseEdit(); // Close the dialog
       })
@@ -213,6 +223,13 @@ const Project = () => {
           ))
         )}
       </Grid>
+
+      {/* Logout Button */}
+      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+        <Button variant="outlined" color="error" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
     </div>
   );
 };

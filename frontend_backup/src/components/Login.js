@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { TextField, Button, Box, Typography, Container, CssBaseline } from '@mui/material';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { TextField, Button, Typography } from '@mui/material';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -9,72 +9,47 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.post('http://localhost:5001/login', { email, password });
-      localStorage.setItem('token', response.data.token);
-      navigate('/projects');
-    } catch (error) {
-      setError('Invalid email or password');
-    }
+
+    axios.post('http://localhost:5001/login', { email, password })
+      .then(response => {
+        localStorage.setItem('token', response.data.token);
+        navigate('/projects'); // Redirect to the projects page
+      })
+      .catch(error => {
+        console.error('Login failed:', error);
+        setError('Invalid email or password');
+      });
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <CssBaseline />
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Typography component="h1" variant="h5">
+    <div style={{ padding: '2rem' }}>
+      <Typography variant="h4" gutterBottom>Login</Typography>
+      <form onSubmit={handleSubmit}>
+        <TextField
+          label="Email"
+          variant="outlined"
+          fullWidth
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          margin="normal"
+        />
+        <TextField
+          label="Password"
+          variant="outlined"
+          fullWidth
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          margin="normal"
+        />
+        {error && <Typography color="error">{error}</Typography>}
+        <Button type="submit" variant="contained" color="primary" fullWidth>
           Login
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error && (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          )}
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Login
-          </Button>
-        </Box>
-      </Box>
-    </Container>
+        </Button>
+      </form>
+    </div>
   );
 };
 
