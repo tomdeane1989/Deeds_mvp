@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Project, Milestone, UserProjectRole, UserProjects } = require('./models'); // Only one import for models
+const { User, Project, Milestone, UserProjectRole, UserProjects } = require('./models');
 const app = express();
 const port = process.env.PORT || 5001;
 
@@ -29,11 +29,10 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-// Register Route (Only Private or Professional role allowed)
+// Register Route
 app.post('/register', async (req, res) => {
   const { email, password, role } = req.body;
   
-  // Check for allowed roles at registration
   if (role !== 'Private' && role !== 'Professional') {
     return res.status(400).json({ message: 'Invalid role. Must be Private or Professional.' });
   }
@@ -72,22 +71,17 @@ app.post('/projects', verifyToken, async (req, res) => {
   const { name, description, userRole } = req.body;
 
   try {
-    // Assign ownerId to the current user (who creates the project)
     const project = await Project.create({
       name,
       description,
       ownerId: req.user.id // Assign the authenticated user as the owner
     });
 
-    // Associate the project with the current user and assign a role
-    const user = await User.findByPk(req.user.id);
-    await user.addProject(project);
-
-    // Assign the project-specific role
+    // Adding user as the project owner, with the role of Admin by default
     await UserProjectRole.create({
-      userId: user.id,
+      userId: req.user.id,
       projectId: project.id,
-      role: userRole || 'Admin' // Default to Admin if no role is provided
+      role: userRole || 'Admin' // Default role as Admin
     });
 
     res.json({ message: 'Project created successfully', project });
@@ -103,22 +97,26 @@ app.put('/projects/:id', verifyToken, async (req, res) => {
   const { name, description, userRole } = req.body;
 
   try {
+    // Find the project by its ID
     const project = await Project.findByPk(id);
 
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Check if the current user is associated with the project
+    // Check if the current user is associated with the project using correct alias for collaborations
     const user = await User.findByPk(req.user.id, {
-      include: {
-        model: Project,
-        where: { id },
-        through: { attributes: [] }
-      }
+      include: [
+        {
+          model: Project,
+          as: 'collaborations', // Use the correct alias
+          where: { id }, // Ensure we're only looking for the correct project
+          through: { attributes: [] }, // Remove unnecessary attributes from join table
+        }
+      ]
     });
 
-    if (!user || !user.Projects.length) {
+    if (!user || !user.collaborations.length) {
       return res.status(403).json({ message: 'You are not authorized to update this project.' });
     }
 
@@ -128,7 +126,7 @@ app.put('/projects/:id', verifyToken, async (req, res) => {
 
     await project.save();
 
-    // Update project-specific role if provided
+    // If the userRole is provided, update or create the role in UserProjectRole
     if (userRole) {
       const userProjectRole = await UserProjectRole.findOne({ where: { userId: user.id, projectId: id } });
       if (userProjectRole) {
@@ -157,23 +155,21 @@ app.delete('/projects/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Check if the current user is associated with the project
+    // Use the correct alias for the Project association with User
     const user = await User.findByPk(req.user.id, {
       include: {
         model: Project,
+        as: 'collaborations', // Use the correct alias
         where: { id },
         through: { attributes: [] }
       }
     });
 
-    if (!user || !user.Projects.length) {
+    if (!user || !user.collaborations.length) { // Adjusted to use the alias here as well
       return res.status(403).json({ message: 'You are not authorized to delete this project.' });
     }
 
-    // Remove all project-user associations in UserProjects
     await UserProjects.destroy({ where: { projectId: id } });
-
-    // Delete project and associated milestones
     await Milestone.destroy({ where: { projectId: id } });
     await project.destroy();
 
@@ -184,82 +180,105 @@ app.delete('/projects/:id', verifyToken, async (req, res) => {
   }
 });
 
-// GET Projects - Return project-specific roles and owner email
+// GET Projects - Return project-specific roles, owner email, and collaborators
 app.get('/projects', verifyToken, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      include: {
-        model: Project,
-        through: { attributes: [] },
-        include: [{ model: User, as: 'owner', attributes: ['email'] }] // Include owner's email
-      }
+      include: [
+        {
+          model: Project,
+          as: 'collaborations', // Correct alias from your association
+          through: { attributes: [] }, // Join table attributes are not needed here
+          include: [
+            { model: User, as: 'owner', attributes: ['email'] }, // Alias for the owner association
+            {
+              model: User,
+              as: 'collaborators', // Alias for the collaborators association
+              through: { model: UserProjectRole, attributes: ['role'] }, // Reference UserProjectRole
+              attributes: ['email']
+            }
+          ]
+        }
+      ]
     });
 
-    const projects = user ? user.Projects : [];
+    const projects = user ? user.collaborations : [];
 
     // Fetch user roles for each project
     const projectRoles = await UserProjectRole.findAll({
       where: { userId: req.user.id }
     });
 
-    const projectsWithRoles = projects.map(project => {
+    const projectsWithDetails = projects.map(project => {
       const projectRole = projectRoles.find(role => role.projectId === project.id);
+
+      // Get collaborators and their roles
+      const collaborators = project.collaborators.map(collaborator => ({
+        email: collaborator.email,
+        role: collaborator.UserProjectRole ? collaborator.UserProjectRole.role : 'No role assigned'
+      }));
+
       return {
         ...project.toJSON(),
         role: projectRole ? projectRole.role : 'No role assigned',
-        ownerEmail: project.owner ? project.owner.email : 'No owner' // Include owner email
+        ownerEmail: project.owner ? project.owner.email : 'No owner',
+        collaborators // Include the list of collaborators
       };
     });
 
-    res.json({ projects: projectsWithRoles });
+    res.json({ projects: projectsWithDetails });
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching projects:', error);
     res.status(500).json({ message: 'Error fetching projects', error });
   }
 });
 
-// Milestones POST route
-app.post('/milestones', verifyToken, async (req, res) => {
-  const milestones = req.body;
+// Add Collaborator Route
+app.post('/projects/:id/add-collaborator', verifyToken, async (req, res) => {
+  const { id } = req.params;  // Project ID
+  const { email, role } = req.body;  // Collaborator email and role
 
   try {
-    const createdMilestones = await Milestone.bulkCreate(milestones);
-    res.json({ message: 'Milestones created successfully', createdMilestones });
+    const project = await Project.findByPk(id);
+    if (!project || project.ownerId !== req.user.id) {
+      return res.status(403).json({ message: 'You are not authorized to add collaborators to this project.' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    await UserProjectRole.create({
+      userId: user.id,
+      projectId: id,
+      role
+    });
+
+    res.json({ message: 'Collaborator added successfully' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creating milestones', error });
+    console.error('Error adding collaborator:', error);
+    res.status(500).json({ message: 'Error adding collaborator', error });
   }
 });
 
-// Milestones GET Route
-app.get('/milestones', verifyToken, async (req, res) => {
-  try {
-    const { projectId } = req.query;
+// Get Project Collaborators
+app.get('/projects/:id/collaborators', verifyToken, async (req, res) => {
+  const { id } = req.params;  // Project ID
 
-    const user = await User.findByPk(req.user.id, {
+  try {
+    const collaborators = await User.findAll({
       include: {
-        model: Project,
-        attributes: ['id'],
-        through: { attributes: [] }
+        model: UserProjectRole,
+        where: { projectId: id },
+        attributes: ['role']
       }
     });
 
-    if (!user || !user.Projects.length) {
-      return res.status(404).json({ message: 'No projects found for this user.' });
-    }
-
-    const selectedProjectId = projectId || user.Projects[0].id;
-
-    const milestones = await Milestone.findAll({ where: { projectId: selectedProjectId } });
-
-    if (!milestones.length) {
-      return res.status(404).json({ message: 'No milestones found for this project.' });
-    }
-
-    res.json({ milestones });
+    res.json({ collaborators });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error fetching milestones', error });
+    console.error('Error fetching collaborators:', error);
+    res.status(500).json({ message: 'Error fetching collaborators', error });
   }
 });
 

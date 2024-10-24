@@ -1,12 +1,22 @@
 'use strict';
-const { Model, DataTypes } = require('sequelize'); // Only import Model and DataTypes
-const sequelize = require('../config/connection'); // Assuming you have a connection file
+const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // Ensure that models.Project is used here to reference the Project model
-      User.belongsToMany(models.Project, { through: 'UserProjects', foreignKey: 'userId', otherKey: 'projectId' });
+      // Association with Projects as collaborators (through UserProjectRole)
+      User.belongsToMany(models.Project, {
+        through: models.UserProjectRole,
+        foreignKey: 'userId',
+        otherKey: 'projectId',
+        as: 'collaborations'  // Alias for projects the user collaborates on
+      });
+
+      // Association for owning projects
+      User.hasMany(models.Project, {
+        foreignKey: 'ownerId',
+        as: 'ownedProjects'  // Alias for projects the user owns
+      });
     }
   }
 
@@ -24,10 +34,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     role: {
-      type: DataTypes.STRING,  // Use DataTypes instead of Sequelize
+      type: DataTypes.STRING,
       allowNull: false,
       validate: {
-        isIn: [['Private', 'Professional']] // Only these roles allowed at registration
+        isIn: [['Private', 'Professional']]  // Allowed roles during registration
       }
     }
   }, {

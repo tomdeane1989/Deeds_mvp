@@ -4,7 +4,15 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class UserProjectRole extends Model {
     static associate(models) {
-      // Associations can be defined here
+      // UserProjectRole connects Users and Projects with specific roles
+      UserProjectRole.belongsTo(models.User, {
+        foreignKey: 'userId',
+        as: 'user'  // Alias for user association
+      });
+      UserProjectRole.belongsTo(models.Project, {
+        foreignKey: 'projectId',
+        as: 'project'  // Alias for project association
+      });
     }
   }
 
@@ -13,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Users', 
+        model: 'Users',
         key: 'id'
       }
     },
@@ -21,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Projects', 
+        model: 'Projects',
         key: 'id'
       }
     },
@@ -29,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false,
       validate: {
-        isIn: [['Admin', 'Buyer', 'Seller', 'Agent', 'Solicitor', 'Mortgage Advisor']],
+        isIn: [['Admin', 'Buyer', 'Seller', 'Agent', 'Solicitor', 'Mortgage Advisor']]  // Ensure valid roles
       }
     }
   }, {

@@ -9,11 +9,12 @@ const Project = () => {
   const [projects, setProjects] = useState([]);
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openAddCollaborator, setOpenAddCollaborator] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
-    role: '' // New field for project-specific role
+    role: '' 
   });
 
   const [editProject, setEditProject] = useState({
@@ -21,9 +22,11 @@ const Project = () => {
     description: ''
   });
 
-  const navigate = useNavigate(); // Hook to handle navigation
+  const [collaboratorEmail, setCollaboratorEmail] = useState('');
+  const [collaboratorRole, setCollaboratorRole] = useState('');
 
-  // Fetch projects and user role from the API when component mounts
+  const navigate = useNavigate(); 
+
   useEffect(() => {
     axios.get('http://localhost:5001/projects', {
       headers: {
@@ -31,14 +34,13 @@ const Project = () => {
       },
     })
       .then(response => {
-        setProjects(response.data.projects); // Store projects data including roles and ownerEmail
+        setProjects(response.data.projects); 
       })
       .catch(error => {
         console.error('Error fetching projects:', error);
       });
   }, []);
 
-  // Handlers for opening/closing create dialog
   const handleClickOpenCreate = () => {
     setOpenCreate(true);
   };
@@ -47,7 +49,6 @@ const Project = () => {
     setOpenCreate(false);
   };
 
-  // Handlers for opening/closing edit dialog
   const handleClickOpenEdit = (project) => {
     setCurrentProject(project);
     setEditProject({
@@ -61,27 +62,32 @@ const Project = () => {
     setOpenEdit(false);
   };
 
-  // Handle input changes for creating a new project
+  const handleClickOpenAddCollaborator = (project) => {
+    setCurrentProject(project);
+    setOpenAddCollaborator(true);
+  };
+
+  const handleCloseAddCollaborator = () => {
+    setOpenAddCollaborator(false);
+  };
+
   const handleInputChange = (e) => {
     setNewProject({ ...newProject, [e.target.name]: e.target.value });
   };
 
-  // Handle role selection change
   const handleRoleChange = (e) => {
     setNewProject({ ...newProject, role: e.target.value });
   };
 
-  // Handle input changes for editing a project
   const handleEditInputChange = (e) => {
     setEditProject({ ...editProject, [e.target.name]: e.target.value });
   };
 
-  // Handle creating a new project
   const handleSubmitCreate = () => {
     const projectData = {
       name: newProject.name,
       description: newProject.description,
-      userRole: newProject.role // Correctly assign userRole to send to backend
+      userRole: newProject.role 
     };
 
     axios.post('http://localhost:5001/projects', projectData, {
@@ -90,20 +96,18 @@ const Project = () => {
       },
     })
       .then(() => {
-        // Re-fetch the projects to ensure the list is updated correctly
         axios.get('http://localhost:5001/projects', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
         })
         .then(response => {
-          setProjects(response.data.projects); // Update state with all projects including the new one
+          setProjects(response.data.projects);
         })
         .catch(error => {
           console.error('Error fetching updated projects:', error);
         });
 
-        // Reset the form and close the dialog
         setNewProject({ name: '', description: '', role: '' });
         handleCloseCreate();
       })
@@ -112,28 +116,49 @@ const Project = () => {
       });
   };
 
-  // Handle editing a project
+  const handleAddCollaborator = () => {
+    axios.post(`http://localhost:5001/projects/${currentProject.id}/add-collaborator`, {
+      email: collaboratorEmail,
+      role: collaboratorRole
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    .then(() => {
+      setCollaboratorEmail('');
+      setCollaboratorRole('');
+      handleCloseAddCollaborator();
+    })
+    .catch(error => {
+      console.error('Error adding collaborator:', error);
+    });
+  };
+
   const handleSubmitEdit = () => {
     axios.put(`http://localhost:5001/projects/${currentProject.id}`, editProject, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     })
+
+    
+
+
+    
       .then(() => {
-        // Re-fetch the projects to ensure the list is updated correctly
         axios.get('http://localhost:5001/projects', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
         })
         .then(response => {
-          setProjects(response.data.projects); // Update state with all projects including the edited one
+          setProjects(response.data.projects);
         })
         .catch(error => {
           console.error('Error fetching updated projects:', error);
         });
 
-        // Close the edit dialog
         handleCloseEdit();
       })
       .catch(error => {
@@ -141,7 +166,6 @@ const Project = () => {
       });
   };
 
-  // Handle deleting a project
   const handleDeleteProject = (projectId) => {
     axios.delete(`http://localhost:5001/projects/${projectId}`, {
       headers: {
@@ -149,7 +173,6 @@ const Project = () => {
       },
     })
       .then(() => {
-        // Remove the deleted project from the state
         setProjects(projects.filter((proj) => proj.id !== projectId));
       })
       .catch(error => {
@@ -157,7 +180,6 @@ const Project = () => {
       });
   };
 
-  // Handle logging out
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
@@ -172,38 +194,72 @@ const Project = () => {
       <Button variant="contained" color="primary" onClick={handleClickOpenCreate} style={{ marginBottom: '20px' }}>
         Create New Project
       </Button>
+{/* Dialog for creating a new project */}
+<Dialog open={openCreate} onClose={handleCloseCreate}>
+  <DialogTitle>Create New Project</DialogTitle>
+  <DialogContent>
+    <TextField
+      autoFocus
+      margin="dense"
+      name="name"
+      label="Project Name"
+      fullWidth
+      value={newProject.name}
+      onChange={handleInputChange}
+    />
+    <TextField
+      margin="dense"
+      name="description"
+      label="Project Description"
+      fullWidth
+      value={newProject.description}
+      onChange={handleInputChange}
+    />
+    <FormControl fullWidth margin="dense">
+      <InputLabel>Select Role</InputLabel>
+      <Select
+        value={newProject.role}
+        onChange={handleRoleChange}
+        label="Select Role"
+      >
+        <MenuItem value="Admin">Admin</MenuItem>
+        <MenuItem value="Buyer">Buyer</MenuItem>
+        <MenuItem value="Seller">Seller</MenuItem>
+        <MenuItem value="Agent">Agent</MenuItem>
+        <MenuItem value="Solicitor">Solicitor</MenuItem>
+        <MenuItem value="Mortgage Advisor">Mortgage Advisor</MenuItem>
+      </Select>
+    </FormControl>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseCreate} color="secondary">
+      Cancel
+    </Button>
+    <Button onClick={handleSubmitCreate} color="primary">
+      Create Project
+    </Button>
+  </DialogActions>
+</Dialog>
 
-      {/* Dialog for creating a new project */}
-      <Dialog open={openCreate} onClose={handleCloseCreate}>
-        <DialogTitle>Create New Project</DialogTitle>
+
+      {/* Dialog for adding a collaborator */}
+      <Dialog open={openAddCollaborator} onClose={handleCloseAddCollaborator}>
+        <DialogTitle>Add Collaborator</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            name="name"
-            label="Project Name"
-            type="text"
+            label="Collaborator Email"
+            type="email"
             fullWidth
-            variant="outlined"
-            value={newProject.name}
-            onChange={handleInputChange}
-          />
-          <TextField
-            margin="dense"
-            name="description"
-            label="Project Description"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={newProject.description}
-            onChange={handleInputChange}
+            value={collaboratorEmail}
+            onChange={(e) => setCollaboratorEmail(e.target.value)}
           />
           <FormControl fullWidth margin="dense">
-            <InputLabel id="role-select-label">Select Role</InputLabel>
+            <InputLabel>Select Role</InputLabel>
             <Select
-              labelId="role-select-label"
-              value={newProject.role}
-              onChange={handleRoleChange}
+              value={collaboratorRole}
+              onChange={(e) => setCollaboratorRole(e.target.value)}
               label="Select Role"
             >
               <MenuItem value="Admin">Admin</MenuItem>
@@ -216,47 +272,11 @@ const Project = () => {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseCreate} color="secondary">
+          <Button onClick={handleCloseAddCollaborator} color="secondary">
             Cancel
           </Button>
-          <Button onClick={handleSubmitCreate} color="primary">
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog for editing a project */}
-      <Dialog open={openEdit} onClose={handleCloseEdit}>
-        <DialogTitle>Edit Project</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Project Name"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={editProject.name}
-            onChange={handleEditInputChange}
-          />
-          <TextField
-            margin="dense"
-            name="description"
-            label="Project Description"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={editProject.description}
-            onChange={handleEditInputChange}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseEdit} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmitEdit} color="primary">
-            Save Changes
+          <Button onClick={handleAddCollaborator} color="primary">
+            Add Collaborator
           </Button>
         </DialogActions>
       </Dialog>
@@ -275,7 +295,6 @@ const Project = () => {
                   <Typography variant="body2" color="text.secondary">
                     {project.description}
                   </Typography>
-                  {/* Separate divs for Project ID, Role, and Owner Email */}
                   <div>
                     <Typography variant="caption" color="text.secondary">
                       Project ID: {project.id}
@@ -291,14 +310,63 @@ const Project = () => {
                       Project Owner: {project.ownerEmail}
                     </Typography>
                   </div>
+                  {/* Display collaborators */}
+                  <div>
+                    <Typography variant="caption" color="text.secondary">
+                      Collaborators:
+                    </Typography>
+                    {project.collaborators && project.collaborators.length > 0 ? (
+                      <ul>
+                        {project.collaborators.map((collaborator) => (
+                          <li key={collaborator.email}>
+                            {collaborator.email} - {collaborator.role}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <Typography variant="body2">No collaborators added yet.</Typography>
+                    )}
+                  </div>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" variant="contained" color="primary">
-                    View Details
+                  <Button size="small" variant="contained" color="primary" onClick={() => handleClickOpenAddCollaborator(project)}>
+                    Add Collaborator
                   </Button>
                   <Button size="small" variant="contained" color="secondary" onClick={() => handleClickOpenEdit(project)}>
-                    Edit
-                  </Button>
+  Edit
+</Button>
+
+{/* Dialog for editing a project */}
+<Dialog open={openEdit} onClose={handleCloseEdit}>
+  <DialogTitle>Edit Project</DialogTitle>
+  <DialogContent>
+    <TextField
+      autoFocus
+      margin="dense"
+      name="name"
+      label="Project Name"
+      fullWidth
+      value={editProject.name}
+      onChange={handleEditInputChange}
+    />
+    <TextField
+      margin="dense"
+      name="description"
+      label="Project Description"
+      fullWidth
+      value={editProject.description}
+      onChange={handleEditInputChange}
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseEdit} color="secondary">
+      Cancel
+    </Button>
+    <Button onClick={handleSubmitEdit} color="primary">
+      Update Project
+    </Button>
+  </DialogActions>
+</Dialog> 
                   <Button size="small" variant="contained" color="error" onClick={() => handleDeleteProject(project.id)}>
                     Delete
                   </Button>
@@ -309,7 +377,6 @@ const Project = () => {
         )}
       </Grid>
 
-      {/* Logout button */}
       <Button onClick={handleLogout} variant="contained" color="secondary" style={{ marginTop: '20px' }}>
         Logout
       </Button>
