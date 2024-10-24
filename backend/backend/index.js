@@ -77,6 +77,45 @@ app.post('/projects', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Error creating project', error });
   }
 });
+
+// Update Project Route (PUT)
+app.put('/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, description } = req.body;
+
+  try {
+    const project = await Project.findByPk(id);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Check if the current user is associated with the project
+    const user = await User.findByPk(req.user.id, {
+      include: {
+        model: Project,
+        where: { id },
+        through: { attributes: [] }
+      }
+    });
+
+    if (!user || !user.Projects.length) {
+      return res.status(403).json({ message: 'You are not authorized to update this project.' });
+    }
+
+    // Update project
+    project.name = name;
+    project.description = description;
+
+    await project.save();
+
+    res.json({ message: 'Project updated successfully', project });
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ message: 'Error updating project', error });
+  }
+});
+
 // Milestones POST route
 app.post('/milestones', verifyToken, async (req, res) => {
   const milestones = req.body;
@@ -89,6 +128,7 @@ app.post('/milestones', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Error creating milestones', error });
   }
 });
+
 // GET Projects
 app.get('/projects', verifyToken, async (req, res) => {
   try {
@@ -111,27 +151,22 @@ app.get('/projects', verifyToken, async (req, res) => {
 // Milestones GET Route
 app.get('/milestones', verifyToken, async (req, res) => {
   try {
-    // Get projectId from query params if available
     const { projectId } = req.query;
 
-    // Fetch the user and associated projects
     const user = await User.findByPk(req.user.id, {
       include: {
         model: Project,
         attributes: ['id'],
-        through: { attributes: [] } // Exclude join table attributes
+        through: { attributes: [] }
       }
     });
 
-    // Check if the user is associated with any projects
     if (!user || !user.Projects.length) {
       return res.status(404).json({ message: 'No projects found for this user.' });
     }
 
-    // Check if projectId is provided in the query, otherwise use the first project
     const selectedProjectId = projectId || user.Projects[0].id;
 
-    // Fetch milestones for the selected projectId
     const milestones = await Milestone.findAll({ where: { projectId: selectedProjectId } });
 
     if (!milestones.length) {
@@ -143,8 +178,8 @@ app.get('/milestones', verifyToken, async (req, res) => {
     console.error(error);
     res.status(500).json({ message: 'Error fetching milestones', error });
   }
-
 });
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

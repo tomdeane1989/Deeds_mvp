@@ -4,8 +4,15 @@ import axios from 'axios';
 
 const Project = () => {
   const [projects, setProjects] = useState([]);
-  const [open, setOpen] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [currentProject, setCurrentProject] = useState(null);
   const [newProject, setNewProject] = useState({
+    name: '',
+    description: ''
+  });
+
+  const [editProject, setEditProject] = useState({
     name: '',
     description: ''
   });
@@ -25,13 +32,27 @@ const Project = () => {
       });
   }, []);
 
-  // Open/Close dialog handlers
-  const handleClickOpen = () => {
-    setOpen(true);
+  // Open/Close dialog handlers for creating a new project
+  const handleClickOpenCreate = () => {
+    setOpenCreate(true);
   };
 
-  const handleClose = () => {
-    setOpen(false);
+  const handleCloseCreate = () => {
+    setOpenCreate(false);
+  };
+
+  // Open/Close dialog handlers for editing a project
+  const handleClickOpenEdit = (project) => {
+    setCurrentProject(project);
+    setEditProject({
+      name: project.name,
+      description: project.description
+    });
+    setOpenEdit(true);
+  };
+
+  const handleCloseEdit = () => {
+    setOpenEdit(false);
   };
 
   // Handle input change for the new project form
@@ -39,8 +60,13 @@ const Project = () => {
     setNewProject({ ...newProject, [e.target.name]: e.target.value });
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
+  // Handle input change for the edit project form
+  const handleEditInputChange = (e) => {
+    setEditProject({ ...editProject, [e.target.name]: e.target.value });
+  };
+
+  // Handle form submission for creating a project
+  const handleSubmitCreate = () => {
     axios.post('http://localhost:5001/projects', newProject, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -49,10 +75,28 @@ const Project = () => {
       .then(response => {
         setProjects([...projects, response.data]); // Add the new project to the list
         setNewProject({ name: '', description: '' }); // Reset the form
-        handleClose(); // Close the dialog
+        handleCloseCreate(); // Close the dialog
       })
       .catch(error => {
         console.error('Error creating project:', error);
+      });
+  };
+
+  // Handle form submission for editing a project
+  const handleSubmitEdit = () => {
+    axios.put(`http://localhost:5001/projects/${currentProject.id}`, editProject, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+      .then(response => {
+        setProjects(projects.map((proj) =>
+          proj.id === currentProject.id ? response.data : proj
+        )); // Update the edited project in the list
+        handleCloseEdit(); // Close the dialog
+      })
+      .catch(error => {
+        console.error('Error updating project:', error);
       });
   };
 
@@ -62,12 +106,12 @@ const Project = () => {
         Your Projects
       </Typography>
 
-      <Button variant="contained" color="primary" onClick={handleClickOpen} style={{ marginBottom: '20px' }}>
+      <Button variant="contained" color="primary" onClick={handleClickOpenCreate} style={{ marginBottom: '20px' }}>
         Create New Project
       </Button>
 
       {/* Dialog for creating a new project */}
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog open={openCreate} onClose={handleCloseCreate}>
         <DialogTitle>Create New Project</DialogTitle>
         <DialogContent>
           <TextField
@@ -93,11 +137,47 @@ const Project = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary">
+          <Button onClick={handleCloseCreate} color="secondary">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} color="primary">
+          <Button onClick={handleSubmitCreate} color="primary">
             Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog for editing a project */}
+      <Dialog open={openEdit} onClose={handleCloseEdit}>
+        <DialogTitle>Edit Project</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="name"
+            label="Project Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={editProject.name}
+            onChange={handleEditInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="description"
+            label="Project Description"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={editProject.description}
+            onChange={handleEditInputChange}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEdit} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmitEdit} color="primary">
+            Save Changes
           </Button>
         </DialogActions>
       </Dialog>
@@ -116,10 +196,16 @@ const Project = () => {
                   <Typography variant="body2" color="text.secondary">
                     {project.description}
                   </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Project ID: {project.id}
+                  </Typography>
                 </CardContent>
                 <CardActions>
                   <Button size="small" variant="contained" color="primary">
                     View Details
+                  </Button>
+                  <Button size="small" variant="contained" color="secondary" onClick={() => handleClickOpenEdit(project)}>
+                    Edit
                   </Button>
                 </CardActions>
               </Card>
