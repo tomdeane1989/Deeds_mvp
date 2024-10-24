@@ -20,7 +20,6 @@ const Project = () => {
     name: '',
     description: ''
   });
-  const [userRole, setUserRole] = useState(''); // State to hold user's role
 
   const navigate = useNavigate(); // Hook to handle navigation
 
@@ -32,8 +31,7 @@ const Project = () => {
       },
     })
       .then(response => {
-        setProjects(response.data.projects); // Store projects data
-        setUserRole(response.data.userRole); // Store the user's role
+        setProjects(response.data.projects); // Store projects data including roles
       })
       .catch(error => {
         console.error('Error fetching projects:', error);
@@ -80,7 +78,13 @@ const Project = () => {
 
   // Handle creating a new project
   const handleSubmitCreate = () => {
-    axios.post('http://localhost:5001/projects', newProject, {
+    const projectData = {
+      name: newProject.name,
+      description: newProject.description,
+      userRole: newProject.role // Correctly assign userRole to send to backend
+    };
+
+    axios.post('http://localhost:5001/projects', projectData, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
@@ -123,10 +127,6 @@ const Project = () => {
     <div style={{ padding: '2rem' }}>
       <Typography variant="h4" gutterBottom>
         Your Projects
-      </Typography>
-
-      <Typography variant="h6" color="text.secondary">
-        Role: {userRole} {/* Displaying the user's role */}
       </Typography>
 
       <Button variant="contained" color="primary" onClick={handleClickOpenCreate} style={{ marginBottom: '20px' }}>
@@ -235,9 +235,17 @@ const Project = () => {
                   <Typography variant="body2" color="text.secondary">
                     {project.description}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Project ID: {project.id}
-                  </Typography>
+                  {/* Separate divs for Project ID and Role */}
+                  <div>
+                    <Typography variant="caption" color="text.secondary">
+                      Project ID: {project.id}
+                    </Typography>
+                  </div>
+                  <div>
+                    <Typography variant="caption" color="text.secondary">
+                      Role: {project.role}
+                    </Typography>
+                  </div>
                 </CardContent>
                 <CardActions>
                   <Button size="small" variant="contained" color="primary">

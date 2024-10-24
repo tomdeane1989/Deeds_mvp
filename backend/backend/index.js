@@ -69,20 +69,20 @@ app.post('/login', async (req, res) => {
 
 // Create Project Route
 app.post('/projects', verifyToken, async (req, res) => {
-  const { name, description, userRole } = req.body; // Adding userRole input for specific project
+  const { name, description, userRole } = req.body;
 
   try {
     const project = await Project.create({ name, description });
 
-    // Associate the project with the current user and assign a role (Admin, Buyer, Seller, etc.)
+    // Associate the project with the current user and assign a role
     const user = await User.findByPk(req.user.id);
-    await user.addProject(project); // This adds the association in UserProjects
+    await user.addProject(project);
 
     // Assign the project-specific role
     await UserProjectRole.create({
       userId: user.id,
       projectId: project.id,
-      role: userRole || 'Admin' // Default role to Admin if not provided
+      role: userRole || 'Admin' // Default to Admin if no role is provided
     });
 
     res.json({ message: 'Project created successfully', project });
@@ -95,7 +95,7 @@ app.post('/projects', verifyToken, async (req, res) => {
 // Update Project Route (PUT)
 app.put('/projects/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const { name, description, userRole } = req.body; // Include userRole for updates if necessary
+  const { name, description, userRole } = req.body;
 
   try {
     const project = await Project.findByPk(id);
@@ -141,19 +141,6 @@ app.put('/projects/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Milestones POST route
-app.post('/milestones', verifyToken, async (req, res) => {
-  const milestones = req.body;
-
-  try {
-    const createdMilestones = await Milestone.bulkCreate(milestones);
-    res.json({ message: 'Milestones created successfully', createdMilestones });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creating milestones', error });
-  }
-});
-
 // GET Projects - Return project-specific roles
 app.get('/projects', verifyToken, async (req, res) => {
   try {
@@ -181,6 +168,19 @@ app.get('/projects', verifyToken, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching projects', error });
+  }
+});
+
+// Milestones POST route
+app.post('/milestones', verifyToken, async (req, res) => {
+  const milestones = req.body;
+
+  try {
+    const createdMilestones = await Milestone.bulkCreate(milestones);
+    res.json({ message: 'Milestones created successfully', createdMilestones });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error creating milestones', error });
   }
 });
 
