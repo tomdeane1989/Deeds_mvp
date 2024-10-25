@@ -3,46 +3,40 @@ import { Route, Routes, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import Login from './components/Login';
 import Project from './components/Project';
+import Milestone from './components/Milestone';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true); // Add a loading state
+  const [loading, setLoading] = useState(true);
 
-  // Check if the user is authenticated by verifying the JWT token
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Verify the token with the backend
       axios.get('http://localhost:5001/verify-token', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       })
         .then(response => {
           if (response.data.valid) {
             setIsAuthenticated(true);
           } else {
-            localStorage.removeItem('token'); // Remove invalid token
+            localStorage.removeItem('token');
             setIsAuthenticated(false);
           }
         })
         .catch(error => {
           console.error('Token verification failed:', error);
-          localStorage.removeItem('token'); // Remove token on error
+          localStorage.removeItem('token');
           setIsAuthenticated(false);
         })
-        .finally(() => {
-          setLoading(false); // Remove the loading state after the request is done
-        });
+        .finally(() => setLoading(false));
     } else {
-      setLoading(false); // No token present, stop loading
+      setLoading(false);
     }
   }, []);
 
-  // Protect the project route
   const ProtectedRoute = ({ children }) => {
     if (loading) {
-      return <div>Loading...</div>; // Show loading indicator while checking token
+      return <div>Loading...</div>;
     }
     if (!isAuthenticated) {
       return <Navigate to="/login" />;
@@ -59,6 +53,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Project />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/milestones"
+          element={
+            <ProtectedRoute>
+              <Milestone />
             </ProtectedRoute>
           }
         />
