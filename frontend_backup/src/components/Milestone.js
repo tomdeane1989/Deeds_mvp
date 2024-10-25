@@ -6,6 +6,7 @@ import { Edit, Delete } from '@mui/icons-material';
 
 function Milestone() {
   const [milestones, setMilestones] = useState([]);
+  const [projectName, setProjectName] = useState(''); // State for project name
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -19,6 +20,7 @@ function Milestone() {
 
   useEffect(() => {
     fetchMilestones();
+    fetchProjectName();
   }, [projectId]);
 
   const fetchMilestones = async () => {
@@ -30,6 +32,20 @@ function Milestone() {
       setMilestones(response.data.milestones);
     } catch (error) {
       setMessage('Error fetching milestones');
+    }
+  };
+
+  const fetchProjectName = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const name = response.data.project.name;
+      setProjectName(name || 'Project'); // Set name or default
+      console.log("Fetched Project Name:", name); // Debugging log
+    } catch (error) {
+      console.error('Error fetching project name', error);
     }
   };
 
@@ -108,7 +124,9 @@ function Milestone() {
 
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>Milestone Management</Typography>
+      <Box textAlign="center" mb={3}>
+        <Typography variant="h4">{projectName || 'Project'} - Milestones</Typography>
+      </Box>
 
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <Button variant="contained" color="secondary" onClick={handleBackToProjects}>

@@ -264,6 +264,35 @@ app.get('/projects', verifyToken, async (req, res) => {
   }
 });
 
+
+// GET single project by ID
+app.get('/projects/:projectId', verifyToken, async (req, res) => {
+  try {
+    const projectId = req.params.projectId;
+    const project = await Project.findByPk(projectId, {
+      include: [
+        { model: User, as: 'owner', attributes: ['email'] },
+        {
+          model: User,
+          as: 'collaborators',
+          through: { model: UserProjectRole, attributes: ['role'] },
+          attributes: ['email']
+        }
+      ]
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.json({ project });
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ message: 'Error fetching project', error });
+  }
+});
+
+
 // Add Collaborator Route
 app.post('/projects/:id/add-collaborator', verifyToken, async (req, res) => {
   const { id } = req.params;  // Project ID
