@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "thomasdeane",
+    "password": "Moodler93*",
+    "database": "deeds_mvp_dev",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "thomasdeane",
+    "password": "Moodler93*",
+    "database": "deeds_mvp_test",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "thomasdeane",
+    "password": "Moodler93*",
+    "database": "deeds_mvp_prod",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}
