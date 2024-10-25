@@ -246,7 +246,7 @@ app.post('/projects/:id/add-collaborator', verifyToken, async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: 'Cannot add users that are not in the system!' });  // Updated message
     }
 
     await UserProjectRole.create({

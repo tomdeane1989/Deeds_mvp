@@ -129,9 +129,26 @@ const Project = () => {
       setCollaboratorEmail('');
       setCollaboratorRole('');
       handleCloseAddCollaborator();
+  
+      // Fetch the updated projects to reflect changes in the UI
+      axios.get('http://localhost:5001/projects', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+      .then(response => {
+        setProjects(response.data.projects);
+      })
+      .catch(error => {
+        console.error('Error fetching updated projects:', error);
+      });
     })
     .catch(error => {
-      console.error('Error adding collaborator:', error);
+      if (error.response && error.response.status === 404) {
+        alert('No such user registered');
+      } else {
+        console.error('Error adding collaborator:', error);
+      }
     });
   };
 
@@ -312,21 +329,23 @@ const Project = () => {
                   </div>
                   {/* Display collaborators */}
                   <div>
-                    <Typography variant="caption" color="text.secondary">
-                      Collaborators:
-                    </Typography>
-                    {project.collaborators && project.collaborators.length > 0 ? (
-                      <ul>
-                        {project.collaborators.map((collaborator) => (
-                          <li key={collaborator.email}>
-                            {collaborator.email} - {collaborator.role}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <Typography variant="body2">No collaborators added yet.</Typography>
-                    )}
-                  </div>
+  <Typography variant="caption" color="text.secondary">
+    Collaborators:
+  </Typography>
+  {project.collaborators && project.collaborators.length > 0 ? (
+    <div>
+    {project.collaborators
+      .filter(collaborator => project.ownerEmail && collaborator.email !== project.ownerEmail)
+      .map((collaborator) => (
+        <Typography variant="body2" key={collaborator.email} style={{ marginLeft: '16px' }}>
+          {collaborator.email} - {collaborator.role}
+        </Typography>
+      ))}
+  </div>
+  ) : (
+    <Typography variant="body2">No collaborators added yet.</Typography>
+  )}
+</div>
                 </CardContent>
                 <CardActions>
                   <Button size="small" variant="contained" color="primary" onClick={() => handleClickOpenAddCollaborator(project)}>
