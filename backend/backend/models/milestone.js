@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       Milestone.belongsTo(models.Project, {
         foreignKey: 'projectId',
+        as: 'project',
         onDelete: 'CASCADE'
       });
     }

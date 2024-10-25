@@ -66,28 +66,59 @@ app.post('/login', async (req, res) => {
   }
 });
 
+////////////////////////////Start of ALL PROJECT Routes/////////////////
+
 // Create Project Route
 app.post('/projects', verifyToken, async (req, res) => {
   const { name, description, userRole } = req.body;
 
   try {
+    // Create the project
     const project = await Project.create({
       name,
       description,
       ownerId: req.user.id // Assign the authenticated user as the owner
     });
 
-    // Adding user as the project owner, with the role of Admin by default
+    // Add user as the project owner with the specified role or default to Admin
     await UserProjectRole.create({
       userId: req.user.id,
       projectId: project.id,
-      role: userRole || 'Admin' // Default role as Admin
+      role: userRole || 'Admin' // Default role as Admin if none provided
     });
 
-    res.json({ message: 'Project created successfully', project });
+    // Define standard milestones for buyers and sellers
+    const buyerMilestones = [
+      { title: 'Viewings', description: 'Initial property viewings', projectId: project.id },
+      { title: 'Offer Stage', description: 'Initial offer stage', projectId: project.id },
+      { title: 'Offer Accepted', description: 'Offer accepted stage', projectId: project.id },
+      { title: 'Solicitor/Conveyancer Admin', description: 'Legal admin process', projectId: project.id },
+      { title: 'Mortgage Application', description: 'Applying for mortgage', projectId: project.id },
+      { title: 'Contract Exchange', description: 'Contract exchange phase', projectId: project.id },
+      { title: 'Key Exchange', description: 'Final stage with key exchange', projectId: project.id }
+    ];
+
+    const sellerMilestones = [
+      { title: 'Viewings', description: 'Initial property viewings', projectId: project.id },
+      { title: 'Offer Stage', description: 'Initial offer stage for property sale', projectId: project.id },
+      { title: 'Offer Accepted', description: 'Offer accepted stage for sale', projectId: project.id },
+      { title: 'Solicitor/Conveyancer Admin', description: 'Legal and conveyancing admin process', projectId: project.id },
+      { title: 'Survey and Valuation', description: 'Property survey and valuation', projectId: project.id },
+      { title: 'Contract Exchange', description: 'Contract exchange phase', projectId: project.id },
+      { title: 'Completion', description: 'Completion of sale and transfer of ownership', projectId: project.id }
+    ];
+
+    // Select appropriate milestones based on the userRole
+    const milestonesToCreate = userRole === 'Buyer' ? buyerMilestones : sellerMilestones;
+
+    // Bulk create milestones for the project
+    await Milestone.bulkCreate(milestonesToCreate);
+
+    // Respond with project creation success and project data
+    res.json({ message: 'Project and default milestones created successfully', project });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creating project', error });
+    console.error('Error creating project and milestones:', error);
+    res.status(500).json({ message: 'Error creating project and milestones', error });
   }
 });
 
@@ -279,6 +310,54 @@ app.get('/projects/:id/collaborators', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching collaborators:', error);
     res.status(500).json({ message: 'Error fetching collaborators', error });
+  }
+});
+
+
+///////////////////// Start of ALL MILESTONES CODE /////////////////////
+
+
+// Get Milestones by Project ID
+app.get('/projects/:projectId/milestones', verifyToken, async (req, res) => {
+  const { projectId } = req.params;
+  try {
+    const milestones = await Milestone.findAll({ where: { projectId } });
+    if (!milestones) return res.status(404).json({ message: 'No milestones found' });
+    res.json({ milestones });
+  } catch (error) {
+    console.error('Error fetching milestones:', error);
+    res.status(500).json({ message: 'Error fetching milestones', error });
+  }
+});
+
+// Create a Milestone for a Project
+app.post('/projects/:projectId/milestones', verifyToken, async (req, res) => {
+  const { projectId } = req.params;
+  const { title, description, dueDate } = req.body; // Include dueDate if needed
+
+  if (!title) {
+    return res.status(400).json({ message: 'Title is required for the milestone' });
+  }
+
+  try {
+    // Check if the project exists
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Create the new milestone associated with the project
+    const milestone = await Milestone.create({
+      title,
+      description,
+      dueDate, // Only include if present in the request body
+      projectId
+    });
+
+    res.json({ message: 'Milestone created successfully', milestone });
+  } catch (error) {
+    console.error('Error creating milestone:', error);
+    res.status(500).json({ message: 'Error creating milestone', error });
   }
 });
 
